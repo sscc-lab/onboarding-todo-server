@@ -1,0 +1,12 @@
+# Image에 넣지 않을 것 — 작고 깨끗한 Image를 위해
+.git
+.github
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+tests
+todo.db
+.env
+*.md

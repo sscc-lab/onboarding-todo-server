@@ -1,0 +1,96 @@
+# CI/CD — Commit → Test → Build → Registry → Deploy
+#
+# 이 파일은 지금 ci/에 있어서 GitHub가 읽지 않습니다.
+# 심화 실습 2-2에서 .github/workflows/로 옮기면 그때부터 동작합니다.
+#
+#   Pull Request      : test → build            (합쳐도 되는지 확인만)
+#   main에 Push(Merge): test → build → push → deploy → verify  (실제로 배포)
+#
+# 필요한 설정 (README «2. 심화 실습»)
+#   Secrets  RENDER_DEPLOY_HOOK  Render 서비스의 Deploy Hook 주소
+#   Variables API_URL            Render 서비스 주소 (https://….onrender.com)
+
+name: CI/CD
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch: # Actions 탭에서 손으로 돌리기 (test · build만)
+
+permissions:
+  contents: read
+  packages: write # GitHub Container Registry(ghcr.io)에 Image를 올리기 위해
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 패키지 설치
+        run: pip install -r requirements-dev.txt
+      - name: 테스트
+        run: pytest -v
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Image 이름 정하기
+        # ghcr.io 주소는 소문자만 된다 — GitHub 아이디에 대문자가 있어도 되도록 바꾼다
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - name: Docker Image 빌드
+        run: docker build --build-arg GIT_SHA=${{ github.sha }} -t $IMAGE:${{ github.sha }} -t $IMAGE:latest .
+      - name: Registry 로그인
+        if: github.event_name == 'push'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Registry에 올리기
+        if: github.event_name == 'push'
+        run: |
+          docker push $IMAGE:${{ github.sha }}
+          docker push $IMAGE:latest
+
+  deploy:
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Render에 배포 요청 (Deploy Hook)
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK Secret이 없습니다 — Settings → Secrets and variables → Actions에 넣으세요"
+            exit 1
+          fi
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}:${{ github.sha }}"
+          ENCODED=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$IMAGE")
+          # 이 Commit의 Image로 배포하라고 Render에 알린다
+          curl -fsS -X POST "$HOOK&imgURL=$ENCODED"
+          echo
+          echo "배포 요청: $IMAGE"
+
+      - name: 배포 확인 — 새 버전이 뜰 때까지 기다리기
+        env:
+          API_URL: ${{ vars.API_URL }}
+        run: |
+          if [ -z "$API_URL" ]; then
+            echo "::warning::API_URL Variable이 없어 배포 확인을 건너뜁니다"
+            exit 0
+          fi
+          # Render가 Image를 받아 Container를 띄우는 데 몇 분 걸린다 — 최대 10분, 20초마다 확인
+          for i in $(seq 1 30); do
+            VERSION=$(curl -fsS "$API_URL/" | python3 -c "import json,sys; print(json.load(sys.stdin).get('version',''))" || true)
+            echo "[$i/30] 지금 버전: ${VERSION:-응답 없음}"
+            if [ "$VERSION" = "${{ github.sha }}" ]; then
+              echo "배포 완료 — $API_URL 에서 ${{ github.sha }} 이 돌고 있습니다"
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::error::10분이 지나도 새 버전이 뜨지 않았습니다 — Render의 Events · Logs에서 Container가 왜 멈췄는지 보세요"
+          exit 1
