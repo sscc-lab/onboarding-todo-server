@@ -1,0 +1,4 @@
+# 테스트에만 쓰는 패키지 — Container Image에는 넣지 않는다
+-r requirements.txt
+pytest
+httpx

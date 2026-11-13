@@ -1,0 +1,12 @@
+# 로컬 데이터베이스 파일
+todo.db
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# 비밀 값
+.env
