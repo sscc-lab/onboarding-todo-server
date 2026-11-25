@@ -4,8 +4,8 @@ SSCCOps Maintainer Onboarding **3회차 · Architecture & CI/CD** 실습용 Back
 화면은 짝 Repository [`onboarding-todo-web`](https://github.com/sscc-lab/onboarding-todo-web)이 맡습니다.
 
 이 템플릿에는 **이 README 하나만** 있습니다. 코드는 여러분의 2회차 `onboarding-todo`에서 직접 옮겨 오고,
-그 `main.py` 한 파일을 **Router · Service · Repository**로 나눈 뒤,
-Commit 하나가 테스트 · Container Image · 배포까지 저절로 이어지는 **CI/CD Pipeline**을 직접 만듭니다.
+그 `main.py` 한 파일을 **Router · Service · Repository**로 나눕니다.
+**기초**에서는 PR마다 테스트가 저절로 도는 **CI**를 켜고, **심화**에서는 Merge 한 번이 Container Image · 배포까지 이어지는 **CD**를 더합니다.
 
 ```text
 Application Flow                         Deployment Flow
@@ -25,19 +25,20 @@ Database    SQLite(로컬) · PostgreSQL(Supabase)
 
 ## 이번 주의 순서 — 한 단계 = Issue 하나 = PR 하나
 
-| 단계 | Issue 제목 | Branch | 끝나면 `pytest` |
+| 단계 | Issue 제목 | Branch | 끝나면 |
 |---|---|---|---|
-| ① | 2회차 서버 코드를 옮겨 오고 테스트로 기준 잡기 | `chore/#1-import` | 11 passed |
-| ② | 설정 · DB · 모델 · 스키마를 나누고 목록 조회를 Layer로 | `refactor/#2-structure` | 11 passed |
-| ③ | 등록을 Layer로 옮기기 | `refactor/#3-create` | 11 passed |
-| ④ | 수정 · 완료 변경을 Layer로 옮기기 | `refactor/#4-update` | 11 passed |
-| ⑤ | 삭제를 Layer로 옮기고 Service 테스트 더하기 | `refactor/#5-delete` | **16 passed** |
-| ⑥ | Dockerfile 만들기 | `chore/#6-docker` | 16 passed |
-| ⑦ | CI/CD Workflow 만들기 | `chore/#7-ci-cd` | (Actions에서) |
-| ⑧ | 장애 주입 — 세 가지 이상 | Issue «[장애] …» | — |
+| ① | 2회차 서버 코드를 옮겨 오고 테스트로 기준 잡기 | `chore/#1-import` | `pytest` 11 passed |
+| ② | CI 켜기 — PR마다 테스트, 통과해야 Merge | `chore/#2-ci` | PR의 Checks에 `test` ✓ |
+| ③ | 설정 · DB · 모델 · 스키마를 나누고 목록 조회를 Layer로 | `refactor/#3-structure` | 11 passed · CI ✓ |
+| ④ | 등록을 Layer로 옮기기 | `refactor/#4-create` | 11 passed · CI ✓ |
+| ⑤ | 수정 · 완료 변경을 Layer로 옮기기 | `refactor/#5-update` | 11 passed · CI ✓ |
+| ⑥ | 삭제를 Layer로 옮기고 Service 테스트 더하기 | `refactor/#6-delete` | **16 passed** · CI ✓ |
+| ⑦ | Dockerfile 만들기 *(심화)* | `chore/#7-docker` | — |
+| ⑧ | CI에 CD 더하기 *(심화)* | `chore/#8-cd` | Merge하면 Render에 배포 |
+| ⑨ | 장애 주입 — 세 가지 이상 *(심화)* | Issue «[장애] …» | — |
 
-> **리팩터링 = 동작은 그대로, 구조만 바꾸기.** ①에서 테스트를 먼저 붙여 두면, ②–⑤의 PR마다 «여전히 11개가 통과하는가»로
-> 아무것도 깨뜨리지 않았는지 확인할 수 있습니다. 초록불에서 시작해 초록불로 끝나는 것이 리팩터링입니다.
+> **리팩터링 = 동작은 그대로, 구조만 바꾸기.** ①에서 테스트를 먼저 붙이고 ②에서 CI를 켜 두면, ③–⑥의 PR마다 GitHub가 «여전히 11개가 통과하는가»를
+> 확인해 줍니다. 깨뜨렸다면 Merge 버튼이 잠깁니다. 초록불에서 시작해 초록불로 끝나는 것이 리팩터링입니다.
 > 번호(`#1` …)는 화면에서 받은 내 Issue 번호로 바꿔 쓰세요.
 
 ## 만들 구조와 꼭 지킬 이름
@@ -56,8 +57,8 @@ onboarding-todo-server/
 │   └── repositories/todo_repository.py DB 접근
 ├── tests/                            ①에서 만든다
 ├── requirements.txt · requirements-dev.txt
-├── Dockerfile · .dockerignore        ⑥에서 만든다
-└── .github/workflows/ci-cd.yml       ⑦에서 만든다
+├── .github/workflows/ci.yml          ②에서 만들고(CI), ⑧에서 CD를 더한다
+└── Dockerfile · .dockerignore        ⑦에서 만든다
 ```
 
 `models` · `schemas` · `routers` · `services` · `repositories` 폴더에도 빈 `__init__.py`를 하나씩 둡니다.
@@ -101,7 +102,7 @@ cd onboarding-todo-server
 > 2회차 기능 네 개를 다 끝내지 못했다면, 먼저 2회차를 마무리하고 옵니다.
 > 막혔다면 `sscc-lab/onboarding-todo`의 `solution` Branch를 참고해도 됩니다.
 
-## 1. 기초 실습 — 옮기고, 테스트로 기준을 잡고, Layer로 나누기
+## 1. 기초 실습 — 옮기고, 테스트로 기준을 잡고, CI를 켜고, Layer로 나누기
 
 ### ① 2회차 서버 코드를 옮겨 오고 테스트로 기준 잡기 — `chore/#1-import`
 
@@ -253,10 +254,77 @@ git push -u origin chore/#1-import
 
 > 11개 중 실패가 있다면 2회차 코드가 API 계약과 다른 곳입니다. 실패 메시지를 읽고 2회차 코드부터 고칩니다.
 
-### ② 설정 · DB · 모델 · 스키마를 나누고 목록 조회를 Layer로 — `refactor/#2-structure`
+### ② CI 켜기 — `chore/#2-ci`
+
+①에서 만든 테스트를 **GitHub가 PR마다 돌리게** 합니다. GitHub는 `.github/workflows/` 안의 YAML 파일만 읽습니다.
+이제부터 ③–⑥의 리팩터링 PR마다 CI가 «여전히 11 passed인가»를 확인해 줍니다.
+
+<details>
+<summary><code>.github/workflows/ci.yml</code> — 기초용 (test Job 하나)</summary>
+
+```yaml
+# CI — Pull Request마다 테스트를 돌리고, main에 들어간 Commit도 한 번 더 확인한다.
+#
+#   Pull Request       : test   (합쳐도 되는지 확인)
+#   main에 Push(Merge) : test   (합친 결과도 확인)
+#
+# 심화 실습 ⑧에서 이 파일에 build · push · deploy Job을 더해 CD까지 만든다.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test: # main 보호 규칙의 «Require status checks»에 이 이름(test)을 넣는다
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 패키지 설치
+        run: pip install -r requirements-dev.txt
+      - name: 테스트
+        run: pytest -v
+```
+</details>
+
+```bash
+git switch main && git pull
+git switch -c chore/#2-ci
+mkdir -p .github/workflows
+# 위 내용으로 .github/workflows/ci.yml을 만든다
+git add .github/workflows/ci.yml
+git commit -m "#2 chore: PR마다 테스트를 돌리는 CI를 켠다"
+git push -u origin chore/#2-ci
+```
+
+PR 화면 아래 **Checks**에 `CI / test`가 돌고 초록불이 되면 Merge합니다. **Actions** 탭에서 Step마다 로그를 열어 봅니다.
+
+**main 보호 규칙** — Merge한 뒤 Repository의 **Settings → Rules → Rulesets → New ruleset → New branch ruleset**:
+
+| 칸 | 값 |
+|---|---|
+| Ruleset Name | `main 보호` |
+| Enforcement status | **Active** |
+| Target branches | **Add target → Include default branch** |
+| Require a pull request before merging | ✓ — Required approvals `1` (Pair의 Approve) |
+| Require status checks to pass | ✓ — **Add checks**에서 `test` |
+| Block force pushes | ✓ (기본으로 켜져 있다) |
+
+이제 `test`가 빨간 PR은 **Merge 버튼이 잠기고**, `main`에 직접 Push도 막힙니다.
+`test`는 CI가 한 번 돈 뒤에야 Add checks 목록에 나타나므로, 이 PR을 먼저 Merge하고 규칙을 겁니다.
+
+### ③ 설정 · DB · 모델 · 스키마를 나누고 목록 조회를 Layer로 — `refactor/#3-structure`
 
 `app/main.py`에서 «HTTP가 아닌 것»을 먼저 떼어 냅니다. 설정과 DB 연결은 아래 내용을 그대로 써도 됩니다
-(2회차 코드에 `REQUIRE_DATABASE_URL`과 `version` 두 가지가 더해졌습니다 — ⑥ · ⑦에서 씁니다).
+(2회차 코드에 `REQUIRE_DATABASE_URL`과 `version` 두 가지가 더해졌습니다 — ⑦ · ⑧에서 씁니다).
 
 <details>
 <summary><code>app/config.py</code> — 환경변수를 읽는 곳은 이 파일 하나</summary>
@@ -381,19 +449,19 @@ def list_todos(service: TodoService = Depends(get_service)):
 
 ```bash
 pytest            # 여전히 11 passed — 구조만 바뀌고 동작은 그대로
-git commit -m "#2 refactor: 설정 · DB · 모델 · 스키마를 나누고 목록 조회를 Layer로 옮긴다"
+git commit -m "#3 refactor: 설정 · DB · 모델 · 스키마를 나누고 목록 조회를 Layer로 옮긴다"
 ```
 
-### ③ · ④ · ⑤ 기능 하나씩 Layer로 옮기기
+### ④ · ⑤ · ⑥ 기능 하나씩 Layer로 옮기기
 
 기능 하나를 옮길 때마다 `main.py`에서 그 함수를 지우고, **아래층부터** 채웁니다 — Repository → Service → Router.
 아래층부터 채우면 위층에서 부를 것이 먼저 생깁니다.
 
 | 단계 | Repository | Service | Router | `main.py`에서 지울 것 |
 |---|---|---|---|---|
-| ③ 등록 | `save(todo)` | `create_todo(title)` + `InvalidTitleError` | `@router.post("", status_code=201)` | `create_todo` |
-| ④ 수정 · 완료 변경 | `find_by_id(todo_id)` | `update_todo(...)` + `TodoNotFoundError` | `@router.patch("/{todo_id}")` | `update_todo` |
-| ⑤ 삭제 | `delete(todo)` | `delete_todo(todo_id)` | `@router.delete("/{todo_id}", status_code=204)` | `delete_todo` |
+| ④ 등록 | `save(todo)` | `create_todo(title)` + `InvalidTitleError` | `@router.post("", status_code=201)` | `create_todo` |
+| ⑤ 수정 · 완료 변경 | `find_by_id(todo_id)` | `update_todo(...)` + `TodoNotFoundError` | `@router.patch("/{todo_id}")` | `update_todo` |
+| ⑥ 삭제 | `delete(todo)` | `delete_todo(todo_id)` | `@router.delete("/{todo_id}", status_code=204)` | `delete_todo` |
 
 **2회차 코드가 어디로 가나** — 등록을 예로 들면:
 
@@ -423,7 +491,7 @@ except InvalidTitleError:
     raise HTTPException(status_code=400, detail="제목을 입력하세요")
 ```
 
-**⑤에서 Service 테스트를 더합니다.** 진짜 DB 대신 가짜 Repository를 넣어 규칙만 시험합니다 — Layer를 나눴기 때문에 할 수 있는 일입니다.
+**⑥에서 Service 테스트를 더합니다.** 진짜 DB 대신 가짜 Repository를 넣어 규칙만 시험합니다 — Layer를 나눴기 때문에 할 수 있는 일입니다.
 
 <details>
 <summary><code>tests/test_todo_service.py</code> — Service 테스트 5개</summary>
@@ -498,7 +566,7 @@ def test_delete_missing_raises(service):
 pytest            # 16 passed — API 계약 11 + Service 규칙 5
 ```
 
-⑤가 끝나면 `app/main.py`에는 «조립»만 남습니다. 그다음 `onboarding-todo-web`의 README대로 화면을 옮기고,
+⑥이 끝나면 `app/main.py`에는 «조립»만 남습니다. 그다음 `onboarding-todo-web`의 README대로 화면을 옮기고,
 화면(5500)과 이 서버(8000)를 함께 띄워 2회차와 똑같이 동작하는지 확인합니다.
 
 **확인할 것**
@@ -507,7 +575,7 @@ pytest            # 16 passed — API 계약 11 + Service 규칙 5
 - `tests/test_todo_service.py`는 왜 DB 없이도 돌아가는가
 - 서버를 다 나눴는데 화면은 왜 한 줄도 바꾸지 않아도 되는가 — **API 계약**이 같기 때문이다
 
-## 2. 심화 실습 — Container와 CI/CD
+## 2. 심화 실습 — Container와 CD
 
 ```text
 Commit → GitHub Actions ─ test ─ build ─ push ─▶ ghcr.io/<아이디>/onboarding-todo-server:<commit>
@@ -517,7 +585,7 @@ Commit → GitHub Actions ─ test ─ build ─ push ─▶ ghcr.io/<아이디>
                                       verify ─▶ GET / 의 version이 이 Commit인지 확인
 ```
 
-### ⑥ Dockerfile 만들기 — `chore/#6-docker`
+### ⑦ Dockerfile 만들기 — `chore/#7-docker`
 
 Repository 맨 위에 두 파일을 만듭니다. 한 줄씩 무엇을 하는지 주석을 읽으며 옮겨 적습니다.
 
@@ -576,7 +644,7 @@ todo.db
 ```
 </details>
 
-Docker Desktop이 있으면 내 컴퓨터에서 먼저 띄워 봅니다. 없으면 건너뛰어도 ⑦의 CI가 같은 일을 합니다.
+Docker Desktop이 있으면 내 컴퓨터에서 먼저 띄워 봅니다. 없으면 건너뛰어도 ⑧의 Workflow가 같은 일을 합니다.
 
 ```bash
 docker build -t todo-server .
@@ -586,25 +654,23 @@ docker run --rm -p 8000:8000 todo-server
 # → DATABASE_URL이 없어 바로 멈춘다 — 로그의 RuntimeError를 읽어 본다
 ```
 
-### ⑦ CI/CD Workflow 만들기 — `chore/#7-ci-cd`
+### ⑧ CI에 CD 더하기 — `chore/#8-cd`
 
-GitHub는 **`.github/workflows/` 안의 YAML 파일만** 읽습니다. 이 파일을 만들어 PR을 올리면 그때부터 Pipeline이 돕니다.
+②에서 만든 `.github/workflows/ci.yml`에 **build · deploy Job을 더합니다.** `test` Job은 그대로 두고, 그 뒤에 이어 붙입니다.
+CD가 CI 뒤에 서기 때문에, **테스트를 통과한 Commit만 Image가 되고 배포됩니다.**
 
 <details>
-<summary><code>.github/workflows/ci-cd.yml</code></summary>
+<summary><code>.github/workflows/ci.yml</code> — 심화 완성 (test → build → deploy)</summary>
 
 ```yaml
-# CI/CD — Commit → Test → Build → Registry → Deploy
+# CI/CD — ②에서 만든 CI에 ⑧에서 CD(build · push · deploy)를 더한 모습
 #
-# 이 파일은 지금 ci/에 있어서 GitHub가 읽지 않습니다.
-# 심화 실습 2-2에서 .github/workflows/로 옮기면 그때부터 동작합니다.
-#
-#   Pull Request      : test → build            (합쳐도 되는지 확인만)
-#   main에 Push(Merge): test → build → push → deploy → verify  (실제로 배포)
+#   Pull Request       : test → build                              (합쳐도 되는지 확인만)
+#   main에 Push(Merge) : test → build → push → deploy → verify     (실제로 배포)
 #
 # 필요한 설정 (README «2. 심화 실습»)
-#   Secrets  RENDER_DEPLOY_HOOK  Render 서비스의 Deploy Hook 주소
-#   Variables API_URL            Render 서비스 주소 (https://….onrender.com)
+#   Secrets   RENDER_DEPLOY_HOOK  Render 서비스의 Deploy Hook 주소
+#   Variables API_URL             Render 서비스 주소 (https://….onrender.com)
 
 name: CI/CD
 
@@ -619,7 +685,7 @@ permissions:
   packages: write # GitHub Container Registry(ghcr.io)에 Image를 올리기 위해
 
 jobs:
-  test:
+  test: # main 보호 규칙의 «Require status checks»에 이 이름(test)을 넣는다
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -698,7 +764,7 @@ jobs:
 | Pull Request | test → build | 합쳐도 되는지 확인만 한다. Image는 올리지 않는다 |
 | `main`에 Merge(Push) | test → build → push → deploy → verify | 실제로 배포한다 |
 
-PR을 만들면 **Checks**에 `test` · `build`가 돕니다. **Actions** 탭에서 Step마다 로그를 열어 봅니다.
+PR을 만들면 **Checks**에 `test` · `build`가 돕니다 — Dockerfile이 망가졌다면 여기서 멈춥니다.
 
 **첫 Merge — 첫 배포는 실패하는 것이 정상입니다.** `main`에서 `test → build → push`까지 성공하고 **`deploy`가 빨갛게** 멈춥니다.
 로그에 `RENDER_DEPLOY_HOOK Secret이 없습니다`가 보입니다 — 아직 Render를 연결하지 않았기 때문입니다. 이것이 첫 장애 추적입니다.
@@ -732,7 +798,7 @@ Package를 열고 **Package settings → Change visibility**가 Private이면 **
 그다음 **Actions → 빨갛게 멈춘 실행 → Re-run failed jobs**. `deploy`가 Render에 이 Commit의 Image로 배포하라고 알리고,
 `배포 확인` Step이 `GET /`의 `version`이 이 Commit이 될 때까지 기다립니다(최대 10분). 이제부터는 PR을 Merge할 때마다 이 흐름이 저절로 돕니다.
 
-## 3. 장애 주입 — 일부러 고장 내고 로그로 찾기 (⑧)
+## 3. 장애 주입 — 일부러 고장 내고 로그로 찾기 (⑨)
 
 배포가 한 번 성공한 뒤에 합니다. 아래에서 **세 가지 이상**을 골라, 고장마다 Issue를 하나씩 남깁니다.
 Issue 제목은 **`[장애] `로 시작**하고, 본문은 아래 «장애 기록 양식»을 붙여 넣어 채웁니다.
@@ -795,9 +861,11 @@ Issue 제목은 **`[장애] `로 시작**하고, 본문은 아래 «장애 기�
 |---|---|
 | `ModuleNotFoundError: No module named 'app'` | Repository 맨 위 폴더에서 `uvicorn app.main:app`·`pytest`를 실행했는가, `app/__init__.py`가 있는가 |
 | `ImportError: cannot import name …` | «꼭 지킬 이름» 표와 이름이 같은가 |
-| ②–⑤ 뒤에 테스트가 실패 | 구조를 옮기다 동작이 바뀌었다 — 실패한 테스트 이름이 무엇이 달라졌는지 알려 준다 |
+| ③–⑥ 뒤에 테스트가 실패 | 구조를 옮기다 동작이 바뀌었다 — 실패한 테스트 이름이 무엇이 달라졌는지 알려 준다 |
 | Actions 탭에 아무것도 없다 | Workflow 파일이 `.github/workflows/` 안에 있는가, 확장자가 `.yml`인가 |
 | `Invalid workflow file` | YAML 들여쓰기 — 공백 두 칸, Tab 금지 |
+| Merge 버튼이 잠겨 있다 | main 보호 규칙 — `test`가 초록인가, Pair의 Approve를 받았는가 |
+| 보호 규칙의 Add checks에 `test`가 없다 | CI가 아직 한 번도 돌지 않았다 — ② PR을 먼저 올려 돌린다 |
 | `push`에서 `denied` · `403` | Workflow 맨 위 `permissions: packages: write`가 있는가 |
 | Render가 Image를 못 받는다 | Package가 Public인가, Image 주소가 **소문자**인가 |
 | `deploy`에서 `curl: (22) … 4xx` | `RENDER_DEPLOY_HOOK` 값이 정확한가, Render 서비스가 Image 방식인가 |
@@ -807,10 +875,11 @@ Issue 제목은 **`[장애] `로 시작**하고, 본문은 아래 «장애 기�
 ## 완료 체크리스트
 
 - [ ] 2회차 서버 코드를 옮겨 오고, API 계약 테스트 11개로 기준을 잡았다
-- [ ] 구조 · 등록 · 수정 · 삭제를 PR로 하나씩 Router · Service · Repository에 옮기며, PR마다 테스트가 통과했다
+- [ ] CI를 켜고 main 보호 규칙(PR 필수 · `test` 통과 필수)을 걸었다
+- [ ] 구조 · 등록 · 수정 · 삭제를 PR로 하나씩 Router · Service · Repository에 옮기며, PR마다 CI가 초록이었다
 - [ ] `pytest`가 16 passed
 - [ ] `onboarding-todo-web`과 함께 로컬에서 2회차와 똑같이 동작한다
-- [ ] Dockerfile과 Workflow를 만들고, PR에서 test · build가 도는 것을 확인했다
+- [ ] Dockerfile을 만들고 CI에 CD를 더해, PR에서 test · build가 도는 것을 확인했다
 - [ ] Merge 한 번으로 Image가 ghcr.io에 올라가고 Render에 배포되는 것을 확인했다
 - [ ] 장애를 세 가지 이상 일으키고, «[장애]» Issue에 단계 · 로그 · 원인 · 해결을 남겼다
 - [ ] Application Flow(Frontend → Router → Service → Repository → DB)와
@@ -823,5 +892,5 @@ Secret(Deploy Hook · DB 주소)은 코드에 쓰지 않고 GitHub Secrets와 Re
 
 ## 강사 · 채점용
 
-- 완성본과 정본 테스트는 `sscc-lab/onboarding-todo-server`의 두 Branch에 있습니다 — [`solution-basic`](https://github.com/sscc-lab/onboarding-todo-server/tree/solution-basic)(기초 ①–⑤를 마친 상태) · [`solution-advanced`](https://github.com/sscc-lab/onboarding-todo-server/tree/solution-advanced)(⑥ · ⑦까지 마친 상태). 먼저 직접 해 본 뒤에 봅니다.
+- 완성본과 정본 테스트는 `sscc-lab/onboarding-todo-server`의 두 Branch에 있습니다 — [`solution-basic`](https://github.com/sscc-lab/onboarding-todo-server/tree/solution-basic)(기초 ①–⑥ — Layer + CI까지) · [`solution-advanced`](https://github.com/sscc-lab/onboarding-todo-server/tree/solution-advanced)(심화 ⑦ · ⑧ — CD까지). 먼저 직접 해 본 뒤에 봅니다.
 - 평가표는 [`solution-advanced` Branch의 `grading/rubric.md`](https://github.com/sscc-lab/onboarding-todo-server/blob/solution-advanced/grading/rubric.md)입니다 — 실습을 마친 뒤 스스로 점검하는 데 써도 됩니다.
