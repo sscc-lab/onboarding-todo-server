@@ -46,13 +46,13 @@ RE_HOOK = re.compile(r"api\.render\.com/deploy/(srv-[\w-]+)\?key=([\w-]+)")
 RE_API_BASE = re.compile(r"""^\s*export\s+const\s+API_BASE\s*=\s*["'`]([^"'`]+)["'`]""", re.M)
 
 ITEMS = [
-    ("W1", "기초 · Layer로 옮기기 PR 흐름", 15),
+    ("W1", "기초 · Layer로 옮기기 PR 흐름", 10),
     ("W2", "기초 · Commit 규칙", 5),
     ("W3", "기초 · Review 받기", 10),
     ("T1", "기초 · API 동작 (정본 테스트)", 15),
     ("T2", "기초 · Layer 규칙", 10),
     ("F1", "기초 · 화면 api.js", 5),
-    ("C1", "심화 · CI 켜기", 5),
+    ("B1", "기초 · CI와 main 보호 (서버 · 웹)", 10),
     ("C2", "심화 · Pipeline 배포 성공", 10),
     ("C3", "심화 · 배포된 서버가 최신 Commit", 10),
     ("C4", "심화 · Pages 화면 · CORS", 5),
@@ -222,6 +222,17 @@ def actions(full):
     return {"pr_runs": pr.get("total_count", 0), "main_runs": runs, "latest_jobs": jobs}
 
 
+def branch_rules(full):
+    """main에 걸린 규칙(Ruleset) 종류 — required_status_checks · pull_request 등. 읽지 못하면 None."""
+    res = run(["gh", "api", f"repos/{full}/rules/branches/main"])
+    if res.returncode != 0:
+        return None
+    try:
+        return sorted({r.get("type") for r in json.loads(res.stdout)})
+    except ValueError:
+        return None
+
+
 def collect(spec, run_tests=True):
     login = spec["login"]
     s_name, s_ref = split_ref(spec.get("server") or f"{login}/onboarding-todo-server")
@@ -231,7 +242,9 @@ def collect(spec, run_tests=True):
         raise SystemExit(f"[{s_name}] GitHub에서 읽지 못했습니다: {err}")
     web, _ = gh_repo(w_name)
 
-    out = {"spec": spec, "server": server, "web": web, "local": {}, "live": {}, "actions": actions(s_name)}
+    out = {"spec": spec, "server": server, "web": web, "local": {}, "live": {}, "actions": actions(s_name),
+           "web_actions": actions(w_name) if web else None,
+           "rules": {"server": branch_rules(s_name), "web": branch_rules(w_name) if web else None}}
     tmp = tempfile.mkdtemp(prefix="todo3-")
     try:
         sd = os.path.join(tmp, "server")
@@ -250,6 +263,8 @@ def collect(spec, run_tests=True):
             clone(w_name, w_ref, wd)
             out["local"]["api_js"] = read(os.path.join(wd, "js", "api.js")) or ""
             out["local"]["config_js"] = read(os.path.join(wd, "js", "config.js")) or ""
+            wwf = os.path.join(wd, ".github", "workflows")
+            out["local"]["web_workflows"] = sorted(os.listdir(wwf)) if os.path.isdir(wwf) else []
             out["local"]["secrets"] += scan_secrets(wd)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
@@ -458,12 +473,22 @@ def check_api_js(local):
     return result("F1", status, ev, score=round(POINTS["F1"] * ok / 4))
 
 
-def check_ci(local, act):
-    wf = local.get("workflows") or []
-    if not wf:
-        return result("C1", "fail", ["main에 .github/workflows/ 파일이 없다 — CI를 켜지 않았다"])
-    ev = [f"Workflow: {', '.join(wf)}", f"PR에서 돈 실행 {act['pr_runs']}번"]
-    return result("C1", "pass" if act["pr_runs"] else "partial", ev + ([] if act["pr_runs"] else ["PR에서 CI가 돈 기록이 없다"]))
+def check_ci(local, act, web_act, rules):
+    """서버 · 웹 각각 — CI가 PR에서 돌았나, main에 «test 통과 필수» 규칙이 걸렸나. 넷 중 몇 개인가."""
+    ok, ev = 0, []
+    for name, wf, a, r in (("서버", local.get("workflows") or [], act, rules.get("server")),
+                           ("웹", local.get("web_workflows") or [], web_act or {}, rules.get("web"))):
+        ran = bool(wf) and (a.get("pr_runs") or 0) > 0
+        gate = r is not None and "required_status_checks" in r
+        ok += ran + gate
+        ev.append(f"{name} — Workflow: {', '.join(wf) or '없음'} · PR 실행 {a.get('pr_runs', 0)}번 · "
+                  f"main 규칙: {', '.join(r) if r else ('읽지 못함' if r is None else '없음')}")
+        if not ran:
+            ev.append(f"{name}: PR에서 CI가 돈 기록이 없다")
+        if not gate:
+            ev.append(f"{name}: main에 «Require status checks» 규칙이 없다 (Branch protection으로 걸었다면 사람 확인)")
+    status = "pass" if ok == 4 else "fail" if ok == 0 else "partial"
+    return result("B1", status, [f"{ok} / 4"] + ev, score=round(POINTS["B1"] * ok / 4))
 
 
 def check_pipeline(act, repo):
@@ -553,13 +578,14 @@ def direct_pushes(gh):
 
 def grade(raw):
     server, web, local, live, act = raw["server"], raw["web"], raw["local"], raw["live"], raw["actions"]
+    web_act, rules = raw.get("web_actions"), raw.get("rules") or {}
     owner = server["owner"]["login"]
     prs = layer_prs(server, owner)
     head = (((server.get("defaultBranchRef") or {}).get("target") or {}).get("oid"))
     items = [
         check_flow(server, prs), check_commits(prs, owner), check_reviews(prs, owner),
-        check_tests(local), check_layers(local), check_api_js(local),
-        check_ci(local, act), check_pipeline(act, server["nameWithOwner"]), check_live(live, head), check_pages(live),
+        check_tests(local), check_layers(local), check_api_js(local), check_ci(local, act, web_act, rules),
+        check_pipeline(act, server["nameWithOwner"]), check_live(live, head), check_pages(live),
         check_incidents(server, owner),
     ]
     pushed = [f"{server['nameWithOwner']}: `{c['messageHeadline']}` ({c['oid'][:7]})" for c in direct_pushes(server)]

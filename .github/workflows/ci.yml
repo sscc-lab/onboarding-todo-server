@@ -1,14 +1,11 @@
-# CI/CD — Commit → Test → Build → Registry → Deploy
+# CI/CD — ②에서 만든 CI에 ⑧에서 CD(build · push · deploy)를 더한 모습
 #
-# 이 파일은 지금 ci/에 있어서 GitHub가 읽지 않습니다.
-# 심화 실습 2-2에서 .github/workflows/로 옮기면 그때부터 동작합니다.
-#
-#   Pull Request      : test → build            (합쳐도 되는지 확인만)
-#   main에 Push(Merge): test → build → push → deploy → verify  (실제로 배포)
+#   Pull Request       : test → build                              (합쳐도 되는지 확인만)
+#   main에 Push(Merge) : test → build → push → deploy → verify     (실제로 배포)
 #
 # 필요한 설정 (README «2. 심화 실습»)
-#   Secrets  RENDER_DEPLOY_HOOK  Render 서비스의 Deploy Hook 주소
-#   Variables API_URL            Render 서비스 주소 (https://….onrender.com)
+#   Secrets   RENDER_DEPLOY_HOOK  Render 서비스의 Deploy Hook 주소
+#   Variables API_URL             Render 서비스 주소 (https://….onrender.com)
 
 name: CI/CD
 
@@ -23,7 +20,7 @@ permissions:
   packages: write # GitHub Container Registry(ghcr.io)에 Image를 올리기 위해
 
 jobs:
-  test:
+  test: # main 보호 규칙의 «Require status checks»에 이 이름(test)을 넣는다
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
