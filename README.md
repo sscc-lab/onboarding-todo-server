@@ -57,7 +57,7 @@ onboarding-todo-server/
 │   └── repositories/todo_repository.py DB 접근
 ├── tests/                            ①에서 만든다
 ├── requirements.txt · requirements-dev.txt
-├── .github/workflows/ci.yml          ②에서 만들고(CI), ⑧에서 CD를 더한다
+├── .github/workflows/ci.yml          ②에서 만든다 — ⑧에서 ci-cd.yml로 이름을 바꾸고 CD를 더한다
 └── Dockerfile · .dockerignore        ⑦에서 만든다
 ```
 
@@ -656,11 +656,18 @@ docker run --rm -p 8000:8000 todo-server
 
 ### ⑧ CI에 CD 더하기 — `chore/#8-cd`
 
-②에서 만든 `.github/workflows/ci.yml`에 **build · deploy Job을 더합니다.** `test` Job은 그대로 두고, 그 뒤에 이어 붙입니다.
+②에서 만든 `.github/workflows/ci.yml`을 **`ci-cd.yml`로 이름을 바꾸고, build · deploy Job을 더합니다.** `test` Job은 그대로 두고, 그 뒤에 이어 붙입니다.
+이제 이 파일은 검사(CI)만이 아니라 배포(CD)까지 담으므로, 파일 이름도 하는 일에 맞춥니다.
+
+```bash
+git mv .github/workflows/ci.yml .github/workflows/ci-cd.yml
+```
+
+이름을 바꿔도 `main` 보호 규칙은 그대로 걸립니다 — Ruleset이 요구하는 `test`는 **파일 이름이 아니라 Job 이름**입니다.
 CD가 CI 뒤에 서기 때문에, **테스트를 통과한 Commit만 Image가 되고 배포됩니다.**
 
 <details>
-<summary><code>.github/workflows/ci.yml</code> — 심화 완성 (test → build → deploy)</summary>
+<summary><code>.github/workflows/ci-cd.yml</code> — 심화 완성 (test → build → deploy)</summary>
 
 ```yaml
 # CI/CD — ②에서 만든 CI에 ⑧에서 CD(build · push · deploy)를 더한 모습
